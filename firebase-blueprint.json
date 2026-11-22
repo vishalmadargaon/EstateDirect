@@ -1,0 +1,120 @@
+{
+  "entities": {
+    "AgencyProfile": {
+      "title": "AgencyProfile",
+      "description": "Publicly visible agency branding and catalog configuration owned by a broker or builder.",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "slug": { "type": "string", "minLength": 2, "maxLength": 64, "pattern": "^[a-z0-9-]+$" },
+        "companyName": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "whatsapp": { "type": "string", "minLength": 8, "maxLength": 24 },
+        "tagline": { "type": "string", "maxLength": 160 },
+        "about": { "type": "string", "maxLength": 800 },
+        "city": { "type": "string", "maxLength": 80 },
+        "logoUrl": { "type": "string", "maxLength": 500000 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "slug", "companyName", "whatsapp", "city", "createdAt"]
+    },
+    "Property": {
+      "title": "Property",
+      "description": "Real-estate property listing belonging to an agency profile.",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "agencySlug": { "type": "string", "maxLength": 64, "pattern": "^[a-z0-9-]+$" },
+        "title": { "type": "string", "minLength": 4, "maxLength": 140 },
+        "builderName": { "type": "string", "maxLength": 100 },
+        "description": { "type": "string", "maxLength": 2500 },
+        "locality": { "type": "string", "maxLength": 120 },
+        "city": { "type": "string", "maxLength": 80 },
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" },
+        "kind": { "type": "string", "enum": ["buy", "rent"] },
+        "propertyType": { "type": "string", "maxLength": 60 },
+        "projectStage": {
+          "type": "string",
+          "enum": ["upcoming", "new_launch", "under_construction", "nearing_possession", "ready_to_move"]
+        },
+        "phaseName": { "type": "string", "maxLength": 80 },
+        "possessionDate": { "type": "string", "maxLength": 40 },
+        "landArea": { "type": "string", "maxLength": 60 },
+        "totalUnits": { "type": "integer" },
+        "totalTowers": { "type": "string", "maxLength": 80 },
+        "price": { "type": "number" },
+        "beds": { "type": "integer" },
+        "baths": { "type": "integer" },
+        "sqft": { "type": "integer" },
+        "parking": { "type": "integer" },
+        "amenities": { "type": "array" },
+        "approvals": { "type": "array" },
+        "reraApproved": { "type": "boolean" },
+        "furnishing": { "type": "string", "maxLength": 60 },
+        "facing": { "type": "string", "maxLength": 40 },
+        "floor": { "type": "string", "maxLength": 60 },
+        "reraNumber": { "type": "string", "maxLength": 80 },
+        "propertyCode": { "type": "string", "maxLength": 32 },
+        "status": { "type": "string", "enum": ["available", "sold", "rented"] },
+        "published": { "type": "boolean" },
+        "images": { "type": "array" },
+        "autoWalkthroughVideo": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "agencySlug", "title", "locality", "city", "kind", "propertyType", "price", "propertyCode", "status", "published", "createdAt"]
+    },
+    "Lead": {
+      "title": "Lead",
+      "description": "Private buyer enquiry or site visit request belonging strictly to the listing owner.",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "propertyId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "propertyTitle": { "type": "string", "maxLength": 140 },
+        "propertyCode": { "type": "string", "maxLength": 32 },
+        "name": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "phone": { "type": "string", "minLength": 8, "maxLength": 24 },
+        "message": { "type": "string", "maxLength": 1000 },
+        "preferredDate": { "type": "string", "maxLength": 32 },
+        "source": { "type": "string", "enum": ["whatsapp", "call", "visit", "meet"] },
+        "status": { "type": "string", "enum": ["new", "contacted", "site_visit", "negotiation", "closed", "lost"] },
+        "notes": { "type": "string", "maxLength": 1000 },
+        "meetUri": { "type": "string", "maxLength": 256 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "propertyId", "name", "phone", "source", "status", "createdAt"]
+    },
+    "AnalyticsEvent": {
+      "title": "AnalyticsEvent",
+      "description": "Catalog and property engagement telemetry event for owner analytics.",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "propertyId": { "type": "string", "maxLength": 128 },
+        "eventType": { "type": "string", "enum": ["catalog_view", "property_view", "whatsapp_click", "call_click", "qr_share"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "eventType", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/profiles/{profileId}": {
+      "schema": { "$ref": "#/entities/AgencyProfile" },
+      "description": "Public agency profile documents keyed by owner UID."
+    },
+    "/properties/{propertyId}": {
+      "schema": { "$ref": "#/entities/Property" },
+      "description": "Property listings readable publicly when published, writable only by owner."
+    },
+    "/leads/{leadId}": {
+      "schema": { "$ref": "#/entities/Lead" },
+      "description": "Private buyer leads (PII) readable and updatable strictly by ownerId."
+    },
+    "/events/{eventId}": {
+      "schema": { "$ref": "#/entities/AnalyticsEvent" },
+      "description": "Append-only engagement events readable strictly by ownerId."
+    }
+  }
+}

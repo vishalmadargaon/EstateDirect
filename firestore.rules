@@ -1,0 +1,162 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Pillar 1: Global Default-Deny Catch-All
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Hardened Global Primitives
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(ownerId) {
+      return isSignedIn() && request.auth.uid == ownerId;
+    }
+
+    // Validation Blueprint: AgencyProfile
+    function isValidProfile(data) {
+      return data.keys().hasAll(['ownerId', 'slug', 'companyName', 'whatsapp', 'city', 'createdAt']) &&
+        data.keys().hasOnly(['ownerId', 'slug', 'companyName', 'whatsapp', 'tagline', 'about', 'city', 'logoUrl', 'createdAt', 'updatedAt']) &&
+        data.ownerId is string && data.ownerId == request.auth.uid && isValidId(data.ownerId) &&
+        data.slug is string && data.slug.size() >= 2 && data.slug.size() <= 64 && data.slug.matches('^[a-z0-9-]+$') &&
+        data.companyName is string && data.companyName.size() >= 2 && data.companyName.size() <= 100 &&
+        data.whatsapp is string && data.whatsapp.size() >= 8 && data.whatsapp.size() <= 24 &&
+        data.city is string && data.city.size() >= 2 && data.city.size() <= 80 &&
+        (!('tagline' in data) || (data.tagline is string && data.tagline.size() <= 160)) &&
+        (!('about' in data) || (data.about is string && data.about.size() <= 800)) &&
+        (!('logoUrl' in data) || (data.logoUrl is string && data.logoUrl.size() <= 500000));
+    }
+
+    // Validation Blueprint: Property
+    function isValidProperty(data) {
+      return data.keys().hasAll(['ownerId', 'agencySlug', 'title', 'locality', 'city', 'kind', 'propertyType', 'price', 'propertyCode', 'status', 'published', 'createdAt']) &&
+        data.keys().hasOnly([
+          'ownerId', 'agencySlug', 'title', 'builderName', 'description', 'locality', 'city',
+          'latitude', 'longitude', 'kind', 'propertyType', 'projectStage', 'phaseName',
+          'possessionDate', 'landArea', 'totalUnits', 'totalTowers', 'price', 'beds', 'baths',
+          'sqft', 'parking', 'amenities', 'approvals', 'reraApproved', 'furnishing', 'facing',
+          'floor', 'reraNumber', 'propertyCode', 'status', 'published', 'images',
+          'autoWalkthroughVideo', 'createdAt', 'updatedAt'
+        ]) &&
+        data.ownerId is string && data.ownerId == request.auth.uid && isValidId(data.ownerId) &&
+        data.agencySlug is string && data.agencySlug.size() >= 2 && data.agencySlug.size() <= 64 &&
+        data.title is string && data.title.size() >= 4 && data.title.size() <= 140 &&
+        (!('builderName' in data) || (data.builderName is string && data.builderName.size() <= 100)) &&
+        data.locality is string && data.locality.size() >= 2 && data.locality.size() <= 120 &&
+        data.city is string && data.city.size() >= 2 && data.city.size() <= 80 &&
+        (!('latitude' in data) || data.latitude is number) &&
+        (!('longitude' in data) || data.longitude is number) &&
+        data.kind in ['buy', 'rent'] &&
+        data.propertyType is string && data.propertyType.size() >= 2 && data.propertyType.size() <= 60 &&
+        (!('projectStage' in data) || data.projectStage in ['upcoming', 'new_launch', 'under_construction', 'nearing_possession', 'ready_to_move']) &&
+        (!('phaseName' in data) || (data.phaseName is string && data.phaseName.size() <= 80)) &&
+        (!('possessionDate' in data) || (data.possessionDate is string && data.possessionDate.size() <= 40)) &&
+        (!('landArea' in data) || (data.landArea is string && data.landArea.size() <= 60)) &&
+        (!('totalUnits' in data) || (data.totalUnits is number && data.totalUnits >= 0)) &&
+        (!('totalTowers' in data) || (data.totalTowers is string && data.totalTowers.size() <= 80)) &&
+        data.price is number && data.price > 0 &&
+        data.propertyCode is string && data.propertyCode.size() >= 3 && data.propertyCode.size() <= 32 &&
+        data.status in ['available', 'sold', 'rented'] &&
+        data.published is bool &&
+        (!('reraApproved' in data) || data.reraApproved is bool) &&
+        (!('autoWalkthroughVideo' in data) || data.autoWalkthroughVideo is bool) &&
+        (!('description' in data) || (data.description is string && data.description.size() <= 2500)) &&
+        (!('amenities' in data) || (data.amenities is list && data.amenities.size() <= 25 && (data.amenities.size() == 0 || data.amenities[0] is string))) &&
+        (!('approvals' in data) || (data.approvals is list && data.approvals.size() <= 15 && (data.approvals.size() == 0 || data.approvals[0] is string))) &&
+        (!('images' in data) || (data.images is list && data.images.size() <= 10 && (data.images.size() == 0 || data.images[0] is string)));
+    }
+
+    // Validation Blueprint: Lead (PII-isolated)
+    function isValidLead(data) {
+      return data.keys().hasAll(['ownerId', 'propertyId', 'name', 'phone', 'source', 'status', 'createdAt']) &&
+        data.keys().hasOnly(['ownerId', 'propertyId', 'propertyTitle', 'propertyCode', 'name', 'phone', 'message', 'preferredDate', 'source', 'status', 'notes', 'meetUri', 'createdAt', 'updatedAt']) &&
+        data.ownerId is string && isValidId(data.ownerId) &&
+        data.propertyId is string && isValidId(data.propertyId) &&
+        data.name is string && data.name.size() >= 2 && data.name.size() <= 100 &&
+        data.phone is string && data.phone.size() >= 8 && data.phone.size() <= 24 &&
+        data.source in ['whatsapp', 'call', 'visit', 'meet'] &&
+        data.status in ['new', 'contacted', 'site_visit', 'negotiation', 'closed', 'lost'] &&
+        (!('message' in data) || (data.message is string && data.message.size() <= 1000)) &&
+        (!('notes' in data) || (data.notes is string && data.notes.size() <= 1000)) &&
+        (!('meetUri' in data) || (data.meetUri is string && data.meetUri.size() <= 256));
+    }
+
+    // Validation Blueprint: AnalyticsEvent
+    function isValidEvent(data) {
+      return data.keys().hasAll(['ownerId', 'eventType', 'createdAt']) &&
+        data.keys().hasOnly(['ownerId', 'propertyId', 'eventType', 'createdAt']) &&
+        data.ownerId is string && isValidId(data.ownerId) &&
+        data.eventType in ['catalog_view', 'property_view', 'whatsapp_click', 'call_click', 'qr_share'] &&
+        (!('propertyId' in data) || (data.propertyId is string && data.propertyId.size() <= 128));
+    }
+
+    // Public Catalog Agency Profiles (no private email/auth secrets stored here)
+    match /profiles/{profileId} {
+      allow get: if isValidId(profileId);
+      allow list: if resource.data.slug is string;
+      allow create: if isVerifiedUser() && isValidId(profileId) && profileId == request.auth.uid && isValidProfile(incoming());
+      allow update: if isVerifiedUser() && isValidId(profileId) && isOwner(existing().ownerId) && isValidProfile(incoming()) &&
+        incoming().ownerId == existing().ownerId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['slug', 'companyName', 'whatsapp', 'tagline', 'about', 'city', 'logoUrl', 'updatedAt']);
+      allow delete: if isVerifiedUser() && isValidId(profileId) && isOwner(existing().ownerId);
+    }
+
+    // Properties Collection: published listings readable by visitors; owners manage their own
+    match /properties/{propertyId} {
+      allow get: if isValidId(propertyId) && (existing().published == true || isOwner(existing().ownerId));
+      allow list: if resource.data.published == true || (isSignedIn() && resource.data.ownerId == request.auth.uid);
+      allow create: if isVerifiedUser() && isValidId(propertyId) && isValidProperty(incoming());
+      allow update: if isVerifiedUser() && isValidId(propertyId) && isOwner(existing().ownerId) && isValidProperty(incoming()) &&
+        incoming().ownerId == existing().ownerId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'title', 'builderName', 'description', 'locality', 'city', 'latitude', 'longitude',
+          'kind', 'propertyType', 'projectStage', 'phaseName', 'possessionDate', 'landArea',
+          'totalUnits', 'totalTowers', 'price', 'beds', 'baths', 'sqft', 'parking', 'amenities',
+          'approvals', 'reraApproved', 'furnishing', 'facing', 'floor', 'reraNumber',
+          'propertyCode', 'status', 'published', 'images', 'autoWalkthroughVideo', 'agencySlug', 'updatedAt'
+        ]);
+      allow delete: if isVerifiedUser() && isValidId(propertyId) && isOwner(existing().ownerId);
+    }
+
+    // Leads Collection: PII strictly isolated to ownerId; visitors may create validated new enquiries only
+    match /leads/{leadId} {
+      allow get: if isValidId(leadId) && isOwner(existing().ownerId);
+      allow list: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+      allow create: if isValidId(leadId) && isValidLead(incoming()) && incoming().status == 'new';
+      allow update: if isVerifiedUser() && isValidId(leadId) && isOwner(existing().ownerId) && isValidLead(incoming()) &&
+        incoming().ownerId == existing().ownerId &&
+        incoming().propertyId == existing().propertyId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['status', 'notes', 'meetUri', 'updatedAt']);
+      allow delete: if isVerifiedUser() && isValidId(leadId) && isOwner(existing().ownerId);
+    }
+
+    // Analytics Events: append-only creation; owner-isolated reads
+    match /events/{eventId} {
+      allow get: if isValidId(eventId) && isOwner(existing().ownerId);
+      allow list: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+      allow create: if isValidId(eventId) && isValidEvent(incoming());
+      allow update, delete: if false;
+    }
+  }
+}

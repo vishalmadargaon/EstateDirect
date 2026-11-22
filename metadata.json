@@ -1,0 +1,10 @@
+{
+  "name": "EstateDirect — Luxury Real-Estate Catalog & WhatsApp Lead Platform",
+  "description": "Branded property catalogs, direct WhatsApp enquiries, 3D architectural tours, Google Meet viewings, and real-time lead analytics for brokers, agents, owners, and builders.",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
