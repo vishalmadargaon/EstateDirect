@@ -1,4 +1,4 @@
-import { initializeApp, getApps } from 'firebase/app';
+import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
 import {
   getAuth,
   GithubAuthProvider,
@@ -6,10 +6,10 @@ import {
   onAuthStateChanged,
   signInWithPopup,
   signOut,
+  type Auth,
   type User,
 } from 'firebase/auth';
-import { doc, getDocFromServer, getFirestore } from 'firebase/firestore';
-import firebaseConfig from '../../firebase-applet-config.json';
+import { doc, getDocFromServer, getFirestore, type Firestore } from 'firebase/firestore';
 
 export const WORKSPACE_SCOPES = [
   'https://www.googleapis.com/auth/meetings.space.created',
@@ -20,11 +20,39 @@ export const WORKSPACE_SCOPES = [
 
 export const WORKSPACE_MEET_SCOPES = WORKSPACE_SCOPES;
 
-const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
-export const auth = getAuth(app);
+function readEnv(key: string): string {
+  const env = (import.meta as unknown as { env?: Record<string, string | undefined> }).env;
+  return (env?.[key] || '').trim();
+}
 
-const configuredDbId = (firebaseConfig as { firestoreDatabaseId?: string }).firestoreDatabaseId;
-export const db = configuredDbId ? getFirestore(app, configuredDbId) : getFirestore(app);
+const firebaseConfig = {
+  apiKey: readEnv('VITE_FIREBASE_API_KEY'),
+  authDomain: readEnv('VITE_FIREBASE_AUTH_DOMAIN'),
+  projectId: readEnv('VITE_FIREBASE_PROJECT_ID'),
+  storageBucket: readEnv('VITE_FIREBASE_STORAGE_BUCKET'),
+  messagingSenderId: readEnv('VITE_FIREBASE_MESSAGING_SENDER_ID'),
+  appId: readEnv('VITE_FIREBASE_APP_ID'),
+  firestoreDatabaseId: readEnv('VITE_FIREBASE_DATABASE_ID'),
+};
+
+export const isFirebaseConfigured = Boolean(
+  firebaseConfig.apiKey && firebaseConfig.projectId && firebaseConfig.appId
+);
+
+let app: FirebaseApp | null = null;
+let authInstance: Auth | null = null;
+let dbInstance: Firestore | null = null;
+
+if (isFirebaseConfigured) {
+  app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
+  authInstance = getAuth(app);
+  dbInstance = firebaseConfig.firestoreDatabaseId
+    ? getFirestore(app, firebaseConfig.firestoreDatabaseId)
+    : getFirestore(app);
+}
+
+export const auth: Auth | null = authInstance;
+export const db: Firestore | null = dbInstance;
 
 export const googleProvider = new GoogleAuthProvider();
 for (const scope of WORKSPACE_SCOPES) {
@@ -73,13 +101,13 @@ export function handleFirestoreError(
   const errInfo: FirestoreErrorInfo = {
     error: error instanceof Error ? error.message : String(error),
     authInfo: {
-      userId: auth.currentUser?.uid ?? null,
-      email: auth.currentUser?.email ?? null,
-      emailVerified: auth.currentUser?.emailVerified ?? null,
-      isAnonymous: auth.currentUser?.isAnonymous ?? null,
-      tenantId: auth.currentUser?.tenantId ?? null,
+      userId: auth?.currentUser?.uid ?? null,
+      email: auth?.currentUser?.email ?? null,
+      emailVerified: auth?.currentUser?.emailVerified ?? null,
+      isAnonymous: auth?.currentUser?.isAnonymous ?? null,
+      tenantId: auth?.currentUser?.tenantId ?? null,
       providerInfo:
-        auth.currentUser?.providerData?.map((provider) => ({
+        auth?.currentUser?.providerData?.map((provider) => ({
           providerId: provider.providerId,
           email: provider.email,
         })) || [],
@@ -92,6 +120,7 @@ export function handleFirestoreError(
 }
 
 export async function testFirestoreConnection(): Promise<boolean> {
+  if (!db) return false;
   try {
     await getDocFromServer(doc(db, 'test', 'connection'));
     return true;
@@ -103,6 +132,10 @@ export async function testFirestoreConnection(): Promise<boolean> {
 export function subscribeFirebaseAuth(
   onUser: (user: User | null, workspaceToken: string | null) => void
 ) {
+  if (!auth) {
+    onUser(null, null);
+    return () => {};
+  }
   return onAuthStateChanged(auth, (user) => {
     if (!user && !isSigningIn) {
       cachedWorkspaceAccessToken = null;
@@ -115,6 +148,11 @@ export async function signInWithGoogleMeet(): Promise<{
   user: User;
   accessToken: string | null;
 }> {
+  if (!auth) {
+    throw new Error(
+      'Google Sign-In needs Firebase environment variables (VITE_FIREBASE_API_KEY, VITE_FIREBASE_PROJECT_ID, VITE_FIREBASE_APP_ID). Use Email OTP or Demo Workspace anytime without setup.'
+    );
+  }
   try {
     isSigningIn = true;
     const result = await signInWithPopup(auth, googleProvider);
@@ -130,6 +168,11 @@ export async function signInWithGoogleMeet(): Promise<{
 }
 
 export async function signInWithGitHub(): Promise<{ user: User }> {
+  if (!auth) {
+    throw new Error(
+      'GitHub Sign-In needs Firebase environment variables (VITE_FIREBASE_API_KEY, VITE_FIREBASE_PROJECT_ID, VITE_FIREBASE_APP_ID). Use Email OTP or Demo Workspace anytime without setup.'
+    );
+  }
   try {
     isSigningIn = true;
     const result = await signInWithPopup(auth, githubProvider);
@@ -149,6 +192,7 @@ export function getWorkspaceAccessToken(): string | null {
 
 export async function signOutFirebase(): Promise<void> {
   cachedWorkspaceAccessToken = null;
+  if (!auth) return;
   try {
     await signOut(auth);
   } catch {

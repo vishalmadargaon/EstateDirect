@@ -500,10 +500,10 @@ export async function seedBangalorePropertiesToFirestore(options: {
   }
 
   let firestoreSynced = false;
-  const currentUser = auth.currentUser;
+  const currentUser = auth?.currentUser ?? null;
 
   // Perform atomic Firestore batch write into `properties/{propertyId}` when signed in as the owner
-  if (currentUser && currentUser.uid === options.ownerId) {
+  if (db && currentUser && currentUser.uid === options.ownerId) {
     try {
       const batch = writeBatch(db);
       for (const prop of inserted) {

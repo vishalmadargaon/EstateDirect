@@ -1,4 +1,4 @@
-# Security Specification — Kavel Real-Estate Platform
+# Security Specification — EstateDirect Real-Estate Platform
 
 ## Data Invariants
 1. **Owner Isolation**: Every `Property`, `Lead`, and `AnalyticsEvent` is bound to an immutable `ownerId` matching the creator's verified Auth UID.

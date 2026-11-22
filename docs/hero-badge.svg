@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 70" width="360" height="70" fill="none">
+  <rect x="1" y="1" width="358" height="68" rx="14" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5"/>
+  <rect x="14" y="14" width="42" height="42" rx="11" fill="#0B1F3A"/>
+  <path d="M24 34L35 24.5L46 34" stroke="#D4AF37" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M27.5 32.5V44.5H42.5V32.5" stroke="#F8FAFC" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="32.5" y="36.5" width="5" height="8" rx="1" fill="#D4AF37"/>
+  <text x="68" y="29" fill="#64748B" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" font-weight="700" letter-spacing="1.2">OPEN SOURCE · ZERO BROKERAGE</text>
+  <text x="68" y="49" fill="#0B1F3A" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="16" font-weight="800">100% Free Real-Estate Platform</text>
+</svg>

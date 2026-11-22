@@ -1,12 +1,25 @@
-# Security Policy — Kavel
+# Security Policy — EstateDirect
 
-## Key Safeguards
-- **Server-Side AI Keys**: `GEMINI_API_KEY` is accessed strictly on the Express backend (`server.ts`) and never bundled into client JavaScript.
-- **In-Memory Workspace OAuth Tokens**: Google Meet OAuth access tokens are cached strictly in React/JS memory and cleared on sign-out — never written to `localStorage` or `sessionStorage`.
-- **Explicit Confirmation for External Mutations**: Creating Google Meet spaces requires explicit user confirmation via an interactive dialog before calling `meet.googleapis.com`.
-- **Hardened Firestore Security Rules**: Default-deny catch-all, strict field allowlists (`hasOnly`), string/array bounds, path ID regex validation, and owner-isolated PII in `/leads`.
-- **HTTP Security Headers**: Configured in both Express middleware and `vercel.json` (`Content-Security-Policy`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `Permissions-Policy`, `HSTS`).
-- **Client & Server Input Validation**: Strict validation on forms, file MIME/size checks (max 5 MB, JPG/PNG/WebP), and safe URL validation for WhatsApp/Meet links.
+## Supported Versions
+
+| Version | Supported |
+| ------- | --------- |
+| `main` (v1.x) | Yes |
 
 ## Reporting a Vulnerability
-Please report security issues privately to the project maintainers rather than opening a public issue.
+
+If you discover a security vulnerability in **EstateDirect**, please report it privately so we can investigate and fix it before public disclosure:
+
+- **Email:** `estatedirect@zohomail.in`
+- **Subject:** `[Security] Brief summary of issue`
+
+Please include steps to reproduce, the affected route or component, and any suggested mitigation. We aim to acknowledge reports within **48 hours** and provide a remediation timeline promptly.
+
+## Built-in Security Safeguards
+
+- **Zero Committed Secrets:** No API keys, Firebase config files (`firebase-applet-config.json`), SMTP passwords, or OAuth client secrets are committed to this repository. All credentials are injected at runtime via environment variables.
+- **Server-Only Secret Isolation:** Sensitive keys (`GEMINI_API_KEY`, `SMTP_PASS`) are read exclusively by the Node.js Express backend (`server.ts`) and are never bundled into the browser client.
+- **In-Memory OAuth Token Handling:** Google Workspace OAuth access tokens (Calendar, Gmail, Meet) are kept strictly in memory and sent to backend proxy routes via `Authorization: Bearer` headers—never written to `localStorage` or `sessionStorage`.
+- **Signed Email OTP Verification:** 6-digit verification codes are generated with `crypto.randomInt`, hashed server-side using HMAC-SHA256, rate-limited per email/IP, and expire automatically after 10 minutes.
+- **Strict Tenant Isolation (`firestore.rules`):** Private buyer leads and notes are readable and writable only by the owning broker/builder UID (`resource.data.ownerId == request.auth.uid`). Public visitors can only view published listings (`published == true`) and submit validated new inquiries (`status == 'new'`).
+- **Hardened HTTP & Input Validation:** All `/api/*` endpoints enforce explicit payload validation, strict CORS/origin hygiene, and security response headers (`X-Content-Type-Options: nosniff`, `X-Frame-Options`, `Referrer-Policy`).

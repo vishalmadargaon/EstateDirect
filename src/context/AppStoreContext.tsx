@@ -251,7 +251,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
 
   const syncDocBestEffort = useCallback(
     async (collectionName: string, docId: string, data: Record<string, unknown>) => {
-      if (!firebaseUser) return;
+      if (!firebaseUser || !db) return;
       // Only sync records owned by the authenticated Firebase UID (skip demo/local-only owner IDs)
       if (typeof data.ownerId === 'string' && data.ownerId !== firebaseUser.uid) {
         return;
@@ -549,7 +549,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         ...prev,
         properties: prev.properties.filter((p) => p.id !== id),
       }));
-      if (firebaseUser) {
+      if (firebaseUser && db) {
         void deleteDoc(doc(db, 'properties', id)).catch(() => {});
       }
       showToast('Property and associated gallery removed.', 'default');
