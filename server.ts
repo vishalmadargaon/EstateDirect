@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import crypto from 'crypto';
 import express from 'express';
+import fs from 'fs';
 import nodemailer from 'nodemailer';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -22,7 +23,9 @@ import {
 import {
   buildRobotsTxt,
   buildSitemapXml,
-  normalizeBaseUrl,
+  injectGoogleSiteVerificationMeta,
+  resolveCanonicalOrigin,
+  sanitizeGoogleSiteVerificationToken,
   summarizeWebTraffic,
   type WebAnalyticsHit,
 } from './src/utils/seoAndAnalytics.ts';
@@ -73,13 +76,27 @@ function getSafeErrorMessage(err: unknown): string {
 }
 
 function getPublicOrigin(req: express.Request): string {
-  const envUrl = (process.env.APP_URL || '').trim();
-  if (envUrl && envUrl !== 'MY_APP_URL') {
-    return normalizeBaseUrl(envUrl);
-  }
-  const proto = (req.headers['x-forwarded-proto'] as string | undefined)?.split(',')[0]?.trim() || req.protocol || 'https';
-  const host = (req.headers['x-forwarded-host'] as string | undefined)?.split(',')[0]?.trim() || req.get('host') || `localhost:${PORT}`;
-  return normalizeBaseUrl(`${proto}://${host}`);
+  const proto =
+    (req.headers['x-forwarded-proto'] as string | undefined)?.split(',')[0]?.trim() ||
+    req.protocol ||
+    'https';
+  const host =
+    (req.headers['x-forwarded-host'] as string | undefined)?.split(',')[0]?.trim() ||
+    req.get('host') ||
+    `localhost:${PORT}`;
+  return resolveCanonicalOrigin(
+    {
+      appUrl: process.env.APP_URL,
+      renderExternalUrl: process.env.RENDER_EXTERNAL_URL,
+    },
+    `${proto}://${host}`
+  );
+}
+
+function getGoogleVerificationToken(): string {
+  return sanitizeGoogleSiteVerificationToken(
+    process.env.GOOGLE_SITE_VERIFICATION || process.env.VITE_GOOGLE_SITE_VERIFICATION || ''
+  );
 }
 
 const PUBLIC_SITEMAP_SLUGS = ['aurelia-estates'];
@@ -115,14 +132,16 @@ app.get('/sitemap.xml', (req, res) => {
     .send(buildSitemapXml(origin, PUBLIC_SITEMAP_SLUGS, PUBLIC_SITEMAP_PROPERTIES));
 });
 
-app.get('/api/health', (_req, res) => {
+app.get('/api/health', (req, res) => {
   const smtp = getSmtpConfig();
   res.json({
     status: 'ok',
     environment: IS_PRODUCTION ? 'production' : 'development',
+    publicOrigin: getPublicOrigin(req),
     services: {
       aiConfigured: Boolean(getGeminiClient()),
       smtpConfigured: smtp.configured,
+      googleVerificationConfigured: Boolean(getGoogleVerificationToken()),
       seoEnabled: true,
       analyticsEnabled: true,
     },
@@ -1053,9 +1072,19 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     const distPath = path.resolve(__dirname, 'dist');
-    app.use(express.static(distPath, { maxAge: '1h', etag: true }));
+    const indexPath = path.join(distPath, 'index.html');
+    const rawHtml = fs.existsSync(indexPath) ? fs.readFileSync(indexPath, 'utf-8') : '';
+    const verifiedHtml = rawHtml
+      ? injectGoogleSiteVerificationMeta(rawHtml, getGoogleVerificationToken())
+      : '';
+
+    app.use(express.static(distPath, { maxAge: '1h', etag: true, index: false }));
     app.get('*', (_req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
+      if (verifiedHtml) {
+        res.setHeader('Cache-Control', 'no-cache');
+        return res.type('text/html; charset=utf-8').send(verifiedHtml);
+      }
+      return res.sendFile(indexPath);
     });
   }
 

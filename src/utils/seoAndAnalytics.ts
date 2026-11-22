@@ -45,11 +45,56 @@ export function isValidGa4MeasurementId(raw: string): boolean {
   return /^G-[A-Z0-9]{6,12}$/.test(raw.trim().toUpperCase());
 }
 
+/**
+ * Accepts either a raw Google Search Console verification token or a pasted
+ * <meta name="google-site-verification" content="..." /> tag and returns a safe token.
+ */
+export function sanitizeGoogleSiteVerificationToken(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return '';
+  const contentMatch = trimmed.match(/content\s*=\s*["']([^"']+)["']/i);
+  const candidate = (contentMatch ? contentMatch[1] : trimmed).trim();
+  return /^[a-zA-Z0-9_-]{8,128}$/.test(candidate) ? candidate : '';
+}
+
+/**
+ * Safely injects the Google Search Console meta verification tag into served HTML
+ * before </head> when a valid token is provided.
+ */
+export function injectGoogleSiteVerificationMeta(html: string, rawToken: string): string {
+  const token = sanitizeGoogleSiteVerificationToken(rawToken);
+  if (!token) return html;
+  if (/name=["']google-site-verification["']/i.test(html)) {
+    return html;
+  }
+  const metaTag = `    <meta name="google-site-verification" content="${token}" />\n`;
+  const headCloseIdx = html.toLowerCase().indexOf('</head>');
+  if (headCloseIdx === -1) {
+    return `${metaTag}${html}`;
+  }
+  return `${html.slice(0, headCloseIdx)}${metaTag}${html.slice(headCloseIdx)}`;
+}
+
 export function normalizeBaseUrl(rawUrl: string): string {
   const trimmed = rawUrl.trim();
   if (!trimmed) return 'https://estatedirect.app';
   const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
   return withScheme.replace(/\/+$/, '');
+}
+
+export function resolveCanonicalOrigin(
+  env: { appUrl?: string; renderExternalUrl?: string },
+  fallbackOrigin: string
+): string {
+  const appUrl = (env.appUrl || '').trim();
+  if (appUrl && appUrl !== 'MY_APP_URL') {
+    return normalizeBaseUrl(appUrl);
+  }
+  const renderUrl = (env.renderExternalUrl || '').trim();
+  if (renderUrl) {
+    return normalizeBaseUrl(renderUrl);
+  }
+  return normalizeBaseUrl(fallbackOrigin);
 }
 
 export function resolveAbsoluteAssetUrl(origin: string, assetPath: string): string {

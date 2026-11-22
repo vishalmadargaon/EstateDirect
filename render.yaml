@@ -3,12 +3,14 @@ services:
     name: estatedirect
     runtime: node
     plan: free
-    buildCommand: npm install && npm run build
-    startCommand: NODE_ENV=production npm start
+    buildCommand: npm install --include=dev && npm run build
+    startCommand: npm start
     healthCheckPath: /healthz
     envVars:
       - key: NODE_ENV
         value: production
+      - key: NODE_VERSION
+        value: "20"
       - key: SMTP_HOST
         value: smtp.zoho.in
       - key: SMTP_PORT
@@ -21,11 +23,13 @@ services:
         value: EstateDirect <estatedirect@zohomail.in>
       - key: BUSINESS_CONTACT_EMAIL
         value: estatedirect@zohomail.in
-      - key: GEMINI_API_KEY
-        sync: false
       - key: SMTP_PASS
         sync: false
       - key: VITE_GA_MEASUREMENT_ID
+        sync: false
+      - key: GOOGLE_SITE_VERIFICATION
+        sync: false
+      - key: GEMINI_API_KEY
         sync: false
       - key: VITE_FIREBASE_API_KEY
         sync: false
@@ -41,4 +45,3 @@ services:
         sync: false
       - key: VITE_FIREBASE_DATABASE_ID
         sync: false
-

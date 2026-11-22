@@ -6,8 +6,11 @@ import {
   buildRouteSeo,
   buildSitemapXml,
   classifyTrafficSource,
+  injectGoogleSiteVerificationMeta,
   isValidGa4MeasurementId,
   normalizeBaseUrl,
+  resolveCanonicalOrigin,
+  sanitizeGoogleSiteVerificationToken,
   summarizeWebTraffic,
   type WebAnalyticsHit,
 } from './seoAndAnalytics';
@@ -171,3 +174,50 @@ test('summarizeWebTraffic aggregates page views, unique sessions, sources, and e
   assert.equal(summary.devices.desktop, 1);
   assert.equal(summary.eventBreakdown[0].name, 'whatsapp_enquiry');
 });
+
+test('sanitizeGoogleSiteVerificationToken extracts safe tokens and rejects injection payloads', () => {
+  assert.equal(
+    sanitizeGoogleSiteVerificationToken('abc123_XYZ-987654321'),
+    'abc123_XYZ-987654321'
+  );
+  assert.equal(
+    sanitizeGoogleSiteVerificationToken(
+      '<meta name="google-site-verification" content="Token_From_Meta_Tag_12345" />'
+    ),
+    'Token_From_Meta_Tag_12345'
+  );
+  assert.equal(sanitizeGoogleSiteVerificationToken('"><script>alert(1)</script>'), '');
+  assert.equal(sanitizeGoogleSiteVerificationToken('short'), '');
+});
+
+test('injectGoogleSiteVerificationMeta injects once before </head> and skips invalid tokens', () => {
+  const baseHtml = '<!doctype html><html><head><title>EstateDirect</title></head><body></body></html>';
+  const injected = injectGoogleSiteVerificationMeta(baseHtml, 'VerifyToken_2026_Live');
+  assert.ok(
+    injected.includes('<meta name="google-site-verification" content="VerifyToken_2026_Live" />')
+  );
+  assert.equal(injectGoogleSiteVerificationMeta(injected, 'VerifyToken_2026_Live'), injected);
+  assert.equal(injectGoogleSiteVerificationMeta(baseHtml, 'bad"token'), baseHtml);
+});
+
+test('resolveCanonicalOrigin prefers APP_URL, then RENDER_EXTERNAL_URL, then fallback', () => {
+  assert.equal(
+    resolveCanonicalOrigin(
+      { appUrl: 'https://estatedirect.in/', renderExternalUrl: 'https://estatedirect.onrender.com' },
+      'http://localhost:3000'
+    ),
+    'https://estatedirect.in'
+  );
+  assert.equal(
+    resolveCanonicalOrigin(
+      { appUrl: 'MY_APP_URL', renderExternalUrl: 'https://estatedirect.onrender.com/' },
+      'http://localhost:3000'
+    ),
+    'https://estatedirect.onrender.com'
+  );
+  assert.equal(
+    resolveCanonicalOrigin({}, 'https://custom-host.example.com/'),
+    'https://custom-host.example.com'
+  );
+});
+

@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAppStore } from '../context/AppStoreContext';
-import { buildRouteSeo } from '../utils/seoAndAnalytics';
+import { buildRouteSeo, sanitizeGoogleSiteVerificationToken } from '../utils/seoAndAnalytics';
 import { trackWebPageView } from '../utils/webAnalytics';
 
 function upsertMetaTag(attr: 'name' | 'property', key: string, content: string): void {
@@ -74,6 +74,14 @@ export function SeoHeadManager() {
     upsertMetaTag('name', 'twitter:image', seo.ogImage);
     upsertCanonicalLink(seo.canonicalUrl);
     upsertJsonLdScript(seo.jsonLd);
+
+    const clientVerifyToken = sanitizeGoogleSiteVerificationToken(
+      ((import.meta as unknown as { env?: Record<string, string | undefined> }).env
+        ?.VITE_GOOGLE_SITE_VERIFICATION) || ''
+    );
+    if (clientVerifyToken) {
+      upsertMetaTag('name', 'google-site-verification', clientVerifyToken);
+    }
 
     trackWebPageView(pathname, seo.title);
   }, [pathname, properties, profiles]);

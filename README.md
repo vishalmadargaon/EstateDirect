@@ -138,13 +138,13 @@ All credentials are configured strictly via environment variables—**never comm
 
 ## Deploy Free (No Credit Card)
 
-EstateDirect includes a pre-configured [`render.yaml`](render.yaml) blueprint for **free hosting on Render**:
+EstateDirect includes a pre-configured [`render.yaml`](render.yaml) blueprint and a full click-by-click **[Render + Zoho Mail + GA4 + Search Console Go-Live Guide](DEPLOYMENT.md)** for **free hosting on Render**:
 
 1. Push this repository to your GitHub account.
 2. Go to [render.com](https://render.com) → **New +** → **Blueprint** and connect `vishalmadargaon/EstateDirect`.
-3. Render automatically reads `render.yaml` (`plan: free`, `npm install && npm run build`, `npm start`, health check `/healthz`).
-4. Add your optional secrets (`SMTP_PASS`, `GEMINI_API_KEY`, `VITE_FIREBASE_*`, `VITE_GA_MEASUREMENT_ID`) inside Render's **Environment** panel.
-5. Click **Apply** to publish your live HTTPS site at `https://estatedirect.onrender.com` (and optionally attach your custom domain).
+3. Render automatically reads `render.yaml` (`plan: free`, `npm install --include=dev && npm run build`, `npm start`, health check `/healthz`).
+4. Add your private secrets (`SMTP_PASS`, `VITE_GA_MEASUREMENT_ID`, `GOOGLE_SITE_VERIFICATION`) inside Render's **Environment** panel.
+5. Click **Apply** to publish your live HTTPS site at `https://estatedirect.onrender.com` — see [`DEPLOYMENT.md`](DEPLOYMENT.md) for the complete walkthrough.
 
 ---
 
